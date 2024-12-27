@@ -1,0 +1,56 @@
+---
+# This is to clean up any string before the start of the type capture
+pre_captures:
+  - '\[.+\]'
+pre_captures_after_trim: '\s+'
+
+# This requires regex group capture since we need to interpret the type / breaking change
+type_captures:
+  - '(\w+)\(.*\)(!):'
+  - '(\w+)(!):'
+  - '(\w+)\(.*\):'
+  - '(\w+):'
+type_captures_after_trim: '\s+'
+# Enable capturing of 2nd regex group to identify as breaking change
+type_captures_allow_breaking_change_group: true
+
+# Attempts to capture every line from each commit to check for explicit breaking change title
+breaking_change_line_captures:
+  - 'BREAKING CHANGE:'
+breaking_change_line_captures_after_trim: '\s+'
+
+# General title trimming
+title_left_trim: '\s+'
+title_right_trim: '\s+'
+
+# Key to match the exact string within 1st regex group of any entry in `type_captures`
+# Value must correspond to a valid `headings` key
+supported_types:
+  feat: feat
+  chore: chore
+  docs: chore
+  fix: fix
+
+# Key should match the values in `supported_types`
+# Value corresponds to the actual Markdown H2 value
+headings:
+  feat: Features 🧩
+  chore: Chores ⚙️
+  fix: Bug Fixes 🐞
+others_heading: Others 🤔
+breaking_changes_heading: BREAKING CHANGES 💥
+
+# Makes the Markdown bullet point neater with consistent capitalized first char
+capitalize_title_first_char: true
+
+# Pre and Post processing msg via regex to further amend the text
+# Preprocessing occurs before all other steps
+# Use Python Regex syntax for search and replace
+# preprocessing:
+#   search: '.+'
+#   replace: '\g<0>'
+
+# Postprocessing occurs after all other steps
+postprocessing:
+  search: '(.+)\(#(\d+)\)'
+  replace: '\1[#\2](https://github.com/dsaidgovsg/cc-changelog-gen/pull/\2)'
