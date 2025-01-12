@@ -54,3 +54,17 @@ capitalize_title_first_char: true
 postprocessing:
   search: '(.+)\(#(\d+)\)'
   replace: '\1[#\2](https://github.com/dsaidgovsg/cc-changelog-gen/pull/\2)'
+
+workspaces:
+  - path: workspaces/a
+    tag_prefix: a-
+    files_include_all_first:
+      excludes:
+        - xxx
+      includes_finally:
+        - xxx
+    # files_exclude_all_first:
+    #   includes:
+    #     - xxx
+    #   excludes_finally:
+    #     - xxx

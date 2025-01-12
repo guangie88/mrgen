@@ -1,9 +1,12 @@
+mod conf;
+
 use anyhow::Result;
 use clap::Parser;
+use conf::Conf;
 use git2::Repository;
 use itertools::Itertools;
 use semver::Version;
-use std::path::PathBuf;
+use std::{fs::File, path::PathBuf};
 
 #[derive(Debug, Parser)]
 #[command(version, about, about = "Command args to pass into mrgen")]
@@ -23,9 +26,14 @@ struct Args {
 }
 
 fn main() -> Result<()> {
-    let opt = Args::parse();
+    let args = Args::parse();
 
-    let repo = Repository::open(&opt.repo)?;
+    let conf: Conf = {
+        let f = File::open(&args.conf)?;
+        serde_yaml::from_reader(f)?
+    };
+
+    let repo = Repository::open(&args.repo)?;
     let tags = repo.tag_names(None)?;
 
     // Iterate over the tags and print them
@@ -57,7 +65,7 @@ fn main() -> Result<()> {
     println!("Most recent tag: {most_recent_tag}");
 
     let mut revwalk = repo.revwalk()?;
-    let prefix = if opt.has_prefix { "v" } else { "" };
+    let prefix = if args.has_prefix { "v" } else { "" };
     // revwalk.push_head()?;
     revwalk.push_range(&format!("{prefix}{most_recent_tag}..HEAD"))?;
 
