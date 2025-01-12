@@ -1,35 +1,29 @@
 use anyhow::Result;
+use clap::Parser;
 use git2::Repository;
 use itertools::Itertools;
 use semver::Version;
 use std::path::PathBuf;
-use structopt::StructOpt;
 
-#[derive(Debug, StructOpt)]
-#[structopt(name = "Args", about = "Command args to pass into mrgen")]
-struct Opt {
-    #[structopt(
-        parse(from_os_str),
-        short = "c",
+#[derive(Debug, Parser)]
+#[command(version, about, about = "Command args to pass into mrgen")]
+struct Args {
+    #[arg(
+        short = 'c',
         help = "Overrides mrgen config file path",
         default_value = ".mrgen.yaml"
     )]
     conf: PathBuf,
 
-    #[structopt(
-        parse(from_os_str),
-        short = "r",
-        help = "Overrides git repo path",
-        default_value = "."
-    )]
+    #[structopt(short = 'r', help = "Overrides git repo path", default_value = ".")]
     repo: PathBuf,
 
-    #[structopt(short = "p", help = "Hints to have v prefix")]
+    #[structopt(short = 'p', help = "Hints to have v prefix")]
     has_prefix: bool,
 }
 
 fn main() -> Result<()> {
-    let opt = Opt::from_args();
+    let opt = Args::parse();
 
     let repo = Repository::open(&opt.repo)?;
     let tags = repo.tag_names(None)?;
