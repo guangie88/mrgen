@@ -5,91 +5,91 @@ use std::{collections::HashMap, path::PathBuf};
 #[derive(Debug, Deserialize)]
 pub struct ProcessingConf {
     #[serde(with = "serde_regex")]
-    search: Regex,
+    pub search: Regex,
 
-    replace: String,
+    pub replace: String,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct GeneralConf {
     #[serde(default, with = "serde_regex")]
-    pre_captures: Option<Vec<Regex>>,
+    pub pre_captures: Option<Vec<Regex>>,
 
     #[serde(default, with = "serde_regex")]
-    pre_captures_after_trim: Option<Regex>,
+    pub pre_captures_after_trim: Option<Regex>,
 
     #[serde(default, with = "serde_regex")]
-    type_captures: Option<Vec<Regex>>,
+    pub type_captures: Option<Vec<Regex>>,
 
     #[serde(default, with = "serde_regex")]
-    type_captures_after_trim: Option<Regex>,
+    pub type_captures_after_trim: Option<Regex>,
 
-    type_captures_allow_breaking_change_group: Option<bool>,
-
-    #[serde(default, with = "serde_regex")]
-    breaking_change_line_captures: Option<Vec<Regex>>,
+    pub type_captures_allow_breaking_change_group: Option<bool>,
 
     #[serde(default, with = "serde_regex")]
-    breaking_change_line_captures_after_trim: Option<Regex>,
+    pub breaking_change_line_captures: Option<Vec<Regex>>,
 
     #[serde(default, with = "serde_regex")]
-    title_left_trim: Option<Regex>,
+    pub breaking_change_line_captures_after_trim: Option<Regex>,
 
     #[serde(default, with = "serde_regex")]
-    title_right_trim: Option<Regex>,
+    pub title_left_trim: Option<Regex>,
 
-    supported_types: Option<HashMap<String, String>>,
+    #[serde(default, with = "serde_regex")]
+    pub title_right_trim: Option<Regex>,
 
-    headings: Option<HashMap<String, String>>,
+    pub supported_types: Option<HashMap<String, String>>,
 
-    others_heading: Option<String>,
+    pub headings: Option<HashMap<String, String>>,
 
-    breaking_changes_heading: Option<String>,
+    pub others_heading: Option<String>,
 
-    capitalize_title_first_char: Option<bool>,
+    pub breaking_changes_heading: Option<String>,
 
-    preprocessing: Option<ProcessingConf>,
+    pub capitalize_title_first_char: Option<bool>,
 
-    postprocessing: Option<ProcessingConf>,
+    pub preprocessing: Option<ProcessingConf>,
 
-    tag_prefix: Option<String>,
+    pub postprocessing: Option<ProcessingConf>,
+
+    pub tag_prefix: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FilesInclusionMode {
     FilesIncludeAllFirst {
-        #[serde(with = "serde_regex")]
+        #[serde(default, with = "serde_regex")]
         excludes: Vec<Regex>,
 
-        #[serde(with = "serde_regex")]
+        #[serde(default, with = "serde_regex")]
         includes_finally: Vec<Regex>,
     },
 
     FilesExcludeAllFirst {
-        #[serde(with = "serde_regex")]
+        #[serde(default, with = "serde_regex")]
         includes: Vec<Regex>,
 
-        #[serde(with = "serde_regex")]
+        #[serde(default, with = "serde_regex")]
         excludes_finally: Vec<Regex>,
     },
 }
 
 #[derive(Debug, Deserialize)]
 pub struct WorkspaceConf {
-    path: PathBuf,
+    pub path: PathBuf,
 
     #[serde(flatten)]
-    files_inclusion_mode: FilesInclusionMode,
+    pub files_inclusion_mode: FilesInclusionMode,
 
     #[serde(flatten)]
-    general: GeneralConf,
+    pub general: GeneralConf,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct Conf {
     #[serde(flatten)]
-    global: GeneralConf,
+    pub global: GeneralConf,
 
-    workspaces: Vec<WorkspaceConf>,
+    pub workspaces: Vec<WorkspaceConf>,
 }

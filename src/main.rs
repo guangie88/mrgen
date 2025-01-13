@@ -1,12 +1,22 @@
 mod conf;
 
-use anyhow::Result;
+use anyhow::{Error, Result};
 use clap::Parser;
-use conf::Conf;
-use git2::Repository;
+use conf::{
+    Conf,
+    FilesInclusionMode::{FilesExcludeAllFirst, FilesIncludeAllFirst},
+};
+use git2::{
+    DiffFormat::{self},
+    Repository,
+};
 use itertools::Itertools;
 use semver::Version;
-use std::{fs::File, path::PathBuf};
+use std::{
+    fs::File,
+    path::PathBuf,
+    str::{from_utf8, Utf8Error},
+};
 
 #[derive(Debug, Parser)]
 #[command(version, about, about = "Command args to pass into mrgen")]
@@ -21,8 +31,8 @@ struct Args {
     #[structopt(short = 'r', help = "Overrides git repo path", default_value = ".")]
     repo: PathBuf,
 
-    #[structopt(short = 'p', help = "Hints to have v prefix")]
-    has_prefix: bool,
+    #[structopt(short = 'w', help = "Specify workspace path", default_value = ".")]
+    workspace: PathBuf,
 }
 
 fn main() -> Result<()> {
@@ -36,49 +46,112 @@ fn main() -> Result<()> {
     let repo = Repository::open(&args.repo)?;
     let tags = repo.tag_names(None)?;
 
-    // Iterate over the tags and print them
-    let semver_tags: Vec<_> = tags
+    let workspace = conf
+        .workspaces
         .iter()
-        .filter_map(|t| {
-            // Allow v or V prefix for semver
-            let t = t?;
-            let t = if t.starts_with("v") || t.starts_with("V") {
-                &t[1..]
-            } else {
-                t
-            };
-            Version::parse(t).ok()
+        .find(|w| w.path == args.workspace)
+        .ok_or_else(|| {
+            Error::msg(format!(
+                "{} does not match any workspace path, aborting.",
+                args.workspace.to_string_lossy()
+            ))
+        })?;
+
+    let tag_prefix = match &workspace.general.tag_prefix {
+        Some(p) => p,
+        None => "",
+    };
+
+    // Iterate over the tags and print them
+    let matching_tags: Vec<_> = tags
+        .iter()
+        .filter_map(|t| match t {
+            Some(t) if t.starts_with(tag_prefix) => {
+                let t = t.trim_start_matches(tag_prefix);
+                Version::parse(t).ok()
+            }
+            _ => None,
         })
         .sorted()
         .rev()
         .collect();
 
-    for t in semver_tags.iter() {
+    for t in matching_tags.iter() {
         println!("{}", t);
     }
 
-    let most_recent_tag = semver_tags
+    let most_recent_tag = matching_tags
         .first()
         .map(|t| t.to_string())
         .unwrap_or_else(|| "".to_owned());
 
-    println!("Most recent tag: {most_recent_tag}");
+    println!("Most recent tag: {most_recent_tag}\n");
 
     let mut revwalk = repo.revwalk()?;
-    let prefix = if args.has_prefix { "v" } else { "" };
-    // revwalk.push_head()?;
-    revwalk.push_range(&format!("{prefix}{most_recent_tag}..HEAD"))?;
+    revwalk.push_range(&format!("{tag_prefix}{most_recent_tag}..HEAD"))?;
 
     // Iterate over the commits
     for commit_id in revwalk {
         let commit_id = commit_id?;
         let commit = repo.find_commit(commit_id)?;
-        println!(
-            "Commit: {}\nAuthor: {}\nMessage: {}\n",
-            commit.id(),
-            commit.author(),
-            commit.message().unwrap_or("No message")
-        );
+
+        let new_tree = commit.tree()?;
+        let old_commit = commit.parent(0)?;
+        let old_tree = old_commit.tree()?;
+
+        let diff = repo.diff_tree_to_tree(Some(&old_tree), Some(&new_tree), None)?;
+
+        let mut lines = vec![];
+        diff.print(DiffFormat::NameOnly, |_, _, line| {
+            lines.push(from_utf8(line.content()).map(|s| s.trim().to_owned()));
+            true
+        })?;
+
+        let lines: Result<Vec<String>, Utf8Error> = lines.into_iter().collect();
+        let lines = lines?;
+
+        let filtered_lines: Vec<_> = lines
+            .iter()
+            .filter(|l| match &workspace.files_inclusion_mode {
+                FilesIncludeAllFirst {
+                    excludes,
+                    includes_finally,
+                } => {
+                    let is_excluded = excludes.iter().any(|r| r.is_match(l));
+                    if is_excluded {
+                        includes_finally.iter().any(|r| r.is_match(l))
+                    } else {
+                        true
+                    }
+                }
+                FilesExcludeAllFirst {
+                    includes,
+                    excludes_finally,
+                } => {
+                    let is_included = includes.iter().any(|r| r.is_match(l));
+                    if is_included {
+                        !excludes_finally.iter().any(|r| r.is_match(l))
+                    } else {
+                        false
+                    }
+                }
+            })
+            .collect();
+
+        if !filtered_lines.is_empty() {
+            println!("{}..{}", old_commit.id(), commit_id);
+            println!(
+                "Commit: {}\nAuthor: {}\nMessage: {}Files:",
+                commit.id(),
+                commit.author(),
+                commit.message().unwrap_or("(No message)")
+            );
+
+            for l in filtered_lines {
+                println!("{l}");
+            }
+            println!()
+        }
     }
 
     Ok(())
